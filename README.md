@@ -13,6 +13,11 @@ with the owner's PIN, pattern, password or fingerprint.
 
 > This is Android only. iOS does not let apps read incoming SMS, so the app can't be built for iPhone.
 
+## Documentation
+
+- **[SETUP.md](SETUP.md)** — full step-by-step setup, the three capability tiers, Shizuku, email, and the Play Protect warning explained.
+- **[PERMISSIONS.md](PERMISSIONS.md)** — what every permission is used for, and the app's battery behaviour.
+
 ## How it works
 
 | Requirement | Implementation |
@@ -48,6 +53,11 @@ Use **Test alarm** to try it. To stop the test, unlock the phone. If device admi
 
 Plain ADB can't let the app switch mobile data on by itself. [Shizuku](https://shizuku.rikka.app/)
 can: it runs a small service at ADB/shell privilege that apps call at runtime.
+
+> Get Shizuku only from its official sources: website <https://shizuku.rikka.app/>
+> and source/releases on GitHub at <https://github.com/RikkaApps/Shizuku>.
+> See [SETUP.md → Tier 3](SETUP.md#5-tier-3--shizuku-auto-enable-data-wi-fi-location--email)
+> for how to start it (wireless or USB debugging / root) and set up email delivery.
 
 With Shizuku installed and running, and access granted in Theft Guard's setup
 checklist ("Auto-enable data & location"), the alarm turns **mobile data, Wi-Fi
@@ -101,9 +111,32 @@ Requirements: Android Studio (or the Android SDK with platform 35) and JDK 17+.
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Signing
+
+The signing key is **not** committed. Out of the box, builds use Android's
+default debug signing, which is enough to install and test. To sign with a fixed
+key (so updates install over the previous version without an uninstall),
+generate your own key and point a local `keystore.properties` at it:
+
+```bash
+keytool -genkeypair -v -keystore theftguard.keystore \
+  -alias theftguard -keyalg RSA -keysize 2048 -validity 10000
+cp keystore.properties.example keystore.properties   # then edit the passwords
+```
+
+`keystore.properties` and `*.keystore` are gitignored. For CI, add
+`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` as
+repository secrets (the build workflow picks them up automatically).
+
 ## Limitations
 
 - A thief can still power the phone off, or remove the SIM before the SMS arrives. The alarm comes back if the phone is powered on again before being unlocked.
 - Android doesn't let normal apps switch **mobile data** or **location** on, so the location SMS needs location to be on already.
 - Some manufacturers (e.g. Xiaomi, Huawei, Oppo) add their own "autostart" or battery restrictions. Allow autostart for Theft Guard on those phones.
 - Google Play restricts apps that use `RECEIVE_SMS` and accessibility services. The app is meant to be sideloaded for personal use.
+- Google Play Protect will warn when you sideload this, because of the sensitive permissions it uses (SMS, accessibility, device admin). This is expected — it flags *behaviour*, not the signing key, so no certificate removes the warning. See [SETUP.md → Why Play Protect warns you](SETUP.md#why-play-protect-warns-you) for an honest explanation and how to install anyway.
+
+## License
+
+Theft Guard is open source under the [MIT License](LICENSE). You are free to use,
+modify and distribute it; it comes with no warranty.
