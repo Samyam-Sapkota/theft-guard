@@ -233,7 +233,12 @@ class AlarmService : Service() {
         override fun onChange(selfChange: Boolean) = enforceMaxVolume()
     }
 
-    /** Backup in case a volume change doesn't produce a settings notification. */
+    /**
+     * Backup in case a volume change doesn't produce a settings notification.
+     * The ContentObserver above handles the common case instantly, so this only
+     * needs to be an occasional safety net - a slow poll keeps CPU wakeups (and
+     * therefore battery use) low while the alarm is running.
+     */
     private val volumePoller = object : Runnable {
         override fun run() {
             enforceMaxVolume()
@@ -368,7 +373,7 @@ class AlarmService : Service() {
         private const val CHANNEL_ID = "theft_alarm"
         private const val NOTIFICATION_ID = 1
         private const val SAMPLE_RATE = 44_100
-        private const val VOLUME_POLL_MS = 200L
+        private const val VOLUME_POLL_MS = 1_000L
 
         /** Sent (package-local) when the alarm stops so the alarm screen can close. */
         const val ACTION_ALARM_STOPPED = "com.theftguard.app.ALARM_STOPPED"
