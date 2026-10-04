@@ -7,3 +7,9 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Signing material — never commit the signing key or its passwords to a public repo.
+# See keystore.properties.example and README → Build for how to configure signing.
+*.keystore
+*.jks
+keystore.properties

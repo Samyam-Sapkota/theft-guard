@@ -20,25 +20,46 @@ android {
         buildConfig = true
     }
 
-    // Fixed signing key so every build (local or CI) is signed the same way and
-    // updates install over the previous version without an uninstall. This key is
-    // only for a personal, sideloaded app; it is not a Play Store upload key.
+    // Signing is loaded from a local, UNCOMMITTED keystore.properties (or matching
+    // environment variables in CI) so the public repo never ships a signing key.
+    // Using a fixed key keeps every build's signature identical, so updates install
+    // over the previous version without an uninstall. When no key is configured,
+    // builds fall back to Android's default debug signing - fine for local testing
+    // and CI debug artifacts. See keystore.properties.example and README → Build.
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = java.util.Properties().apply {
+        if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+    }
+    fun signingValue(propKey: String, envKey: String): String? =
+        keystoreProps.getProperty(propKey) ?: System.getenv(envKey)
+
+    val storeFilePath = signingValue("storeFile", "KEYSTORE_FILE")
+    val hasCustomSigning = storeFilePath != null && rootProject.file(storeFilePath).exists()
+
     signingConfigs {
-        create("shared") {
-            storeFile = rootProject.file("theftguard.keystore")
-            storePassword = "theftguard"
-            keyAlias = "theftguard"
-            keyPassword = "theftguard"
+        if (hasCustomSigning) {
+            create("shared") {
+                storeFile = rootProject.file(storeFilePath!!)
+                storePassword = signingValue("storePassword", "KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (hasCustomSigning) signingConfig = signingConfigs.getByName("shared")
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("shared")
+            // Use the shared key if configured, otherwise fall back to debug signing
+            // so a plain checkout still produces an installable APK.
+            signingConfig = if (hasCustomSigning) {
+                signingConfigs.getByName("shared")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 

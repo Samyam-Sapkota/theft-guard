@@ -20,6 +20,29 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Materialize the signing key from repository secrets, if they are set.
+      # Without them the build falls back to default debug signing (see
+      # app/build.gradle.kts), so forks and first-time builds still work.
+      - name: Set up signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > theftguard.keystore
+            cat > keystore.properties <<EOF
+          storeFile=theftguard.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+            echo "Signing key configured from secrets."
+          else
+            echo "No signing secrets set; using default debug signing."
+          fi
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
